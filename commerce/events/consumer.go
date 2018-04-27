@@ -35,6 +35,8 @@ func NewConsumer(bootstrapServers, groupID, offset string) (*Consumer, error) {
 // Consume starts the consumer along a given topic and partition. Every message
 // that is consumed is executed by handler.
 func (c *Consumer) Consume(topic string, partition int32, handler HandlerFunc) error {
+	c.consumer.Subscribe(topic, nil)
+
 	topicPartition := kafka.TopicPartition{
 		Topic:     &topic,
 		Partition: partition,
