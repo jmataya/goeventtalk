@@ -1,4 +1,4 @@
-package storage
+package audit
 
 import (
 	"encoding/json"
@@ -9,17 +9,23 @@ import (
 	"github.com/jmataya/goeventtalk/commerce/events"
 )
 
-var carts = map[string]Cart{}
+var customers = map[int]string{
+	1: "Jeff Mataya",
+	2: "Adil Wali",
+	3: "Bree Swineford",
+}
+
+var orders = map[string]int{}
 
 func Run() error {
-	consumer, err := events.NewConsumer("localhost:29092", "cartsStorage", "earliest")
+	consumer, err := events.NewConsumer("localhost:29092", "cartsAudit", "earliest")
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("---------------")
-	fmt.Println("Storage Started")
-	fmt.Println("---------------")
+	fmt.Println("-----------------")
+	fmt.Println("Audit Log Started")
+	fmt.Println("-----------------")
 	fmt.Println("")
 
 	return consumer.Consume("carts", kafka.PartitionAny, handleActivity)
@@ -46,14 +52,11 @@ func handleCreateCart(a *commerce.Activity) error {
 		return err
 	}
 
-	cart := Cart{
-		OrderRef:   cartActivity.OrderRef,
-		CustomerID: cartActivity.CustomerID,
-	}
+	orders[cartActivity.OrderRef] = cartActivity.CustomerID
+	customerName := customers[cartActivity.CustomerID]
 
-	carts[cartActivity.OrderRef] = cart
-
-	return logCart("Cart %s created!", cart)
+	fmt.Printf("%s created a new cart with reference %s\n", customerName, cartActivity.OrderRef)
+	return nil
 }
 
 func handleAddLineItems(a *commerce.Activity) error {
@@ -62,11 +65,20 @@ func handleAddLineItems(a *commerce.Activity) error {
 		return err
 	}
 
-	cart := carts[lineItemActivity.OrderRef]
-	cart.LineItems = lineItemActivity.LineItems
-	carts[lineItemActivity.OrderRef] = cart
+	customerID := orders[lineItemActivity.OrderRef]
+	customerName := customers[customerID]
 
-	return logCart("Line items added to cart %s!", cart)
+	for _, lineItem := range lineItemActivity.LineItems {
+		fmt.Printf(
+			"%s %d unit of %s to cart %s\n",
+			customerName,
+			lineItem.Quantity,
+			lineItem.SKU,
+			lineItemActivity.OrderRef,
+		)
+	}
+
+	return nil
 }
 
 func handleAddShippingAddress(a *commerce.Activity) error {
@@ -75,11 +87,21 @@ func handleAddShippingAddress(a *commerce.Activity) error {
 		return err
 	}
 
-	cart := carts[shippingActivity.OrderRef]
-	cart.Address = shippingActivity.Address
-	carts[shippingActivity.OrderRef] = cart
+	customerID := orders[shippingActivity.OrderRef]
+	customerName := customers[customerID]
 
-	return logCart("Shipping address added to cart %s!", cart)
+	fmt.Printf(
+		"%s added the address %s, %s %s, %s %s to the cart %s\n",
+		customerName,
+		shippingActivity.Address.Street1,
+		shippingActivity.Address.Street2,
+		shippingActivity.Address.City,
+		shippingActivity.Address.State,
+		shippingActivity.Address.PostalCode,
+		shippingActivity.OrderRef,
+	)
+
+	return nil
 }
 
 func handleAddPayment(a *commerce.Activity) error {
@@ -88,11 +110,18 @@ func handleAddPayment(a *commerce.Activity) error {
 		return err
 	}
 
-	cart := carts[paymentActivity.OrderRef]
-	cart.Payment = paymentActivity.Payment
-	carts[paymentActivity.OrderRef] = cart
+	customerID := orders[paymentActivity.OrderRef]
+	customerName := customers[customerID]
 
-	return logCart("Order %s completed!", cart)
+	fmt.Printf(
+		"%s added payment method with expiration %d/%d to cart %s\n",
+		customerName,
+		paymentActivity.Payment.ExpMonth,
+		paymentActivity.Payment.ExpYear,
+		paymentActivity.OrderRef,
+	)
+
+	return nil
 }
 
 func getPayload(a *commerce.Activity, out interface{}) error {
@@ -100,12 +129,5 @@ func getPayload(a *commerce.Activity, out interface{}) error {
 		return err
 	}
 
-	return nil
-}
-
-func logCart(message string, c Cart) error {
-	msg := fmt.Sprintf(message, c.OrderRef)
-	fmt.Printf("%s\n", msg)
-	fmt.Printf("%+v\n", c)
 	return nil
 }
