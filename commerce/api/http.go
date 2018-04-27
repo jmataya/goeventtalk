@@ -3,13 +3,24 @@ package api
 import (
 	"net/http"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/jmataya/goeventtalk/commerce/events"
+
 	"github.com/jmataya/goeventtalk/commerce"
 	"github.com/labstack/echo"
 )
 
 func Run() {
 	// CartService instance
+	producer, err := events.NewProducer("localhost:29092")
+	if err != nil {
+		panic(err)
+	}
+
 	cs := new(CartService)
+	cs.producer = producer
+	cs.topic = "carts"
+	cs.partition = kafka.PartitionAny
 
 	// Echo instance
 	e := echo.New()
