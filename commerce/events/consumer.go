@@ -52,10 +52,19 @@ func (c *Consumer) Consume(topic string, partition int32, handler HandlerFunc) e
 			return fmt.Errorf("Consumer error %v (%v)", err, msg)
 		}
 
+		// Retrieve the activity.
 		activity := new(commerce.Activity)
 		if err := json.Unmarshal(msg.Value, activity); err != nil {
 			return fmt.Errorf("Unable to unmarshal activity %v (%v)", err, msg)
 		}
+
+		// Convert the paylod to bytes for easy unmarshalling later.
+		payloadBytes, err := json.Marshal(activity.Payload)
+		if err != nil {
+			return fmt.Errorf("Unable to encode activity payload %v (%v)", err, activity)
+		}
+
+		activity.Payload = payloadBytes
 
 		if err := handler(activity); err != nil {
 			return err
