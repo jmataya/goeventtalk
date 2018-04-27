@@ -38,7 +38,11 @@ func createCart(cs *CartService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, errMessage{err})
 		}
 
-		orderRef := cs.CreateCart(payload.CustomerID)
+		orderRef, err := cs.CreateCart(payload.CustomerID)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, errMessage{err})
+		}
+
 		return c.JSON(http.StatusCreated, struct {
 			OrderRef string
 		}{orderRef})
@@ -56,7 +60,10 @@ func addLineItems(cs *CartService) echo.HandlerFunc {
 		}
 
 		orderRef := c.Param("orderRef")
-		cs.AddLineItems(orderRef, payload.LineItems)
+		err := cs.AddLineItems(orderRef, payload.LineItems)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, errMessage{err})
+		}
 
 		return c.JSON(http.StatusOK, payload)
 	}
@@ -73,7 +80,10 @@ func addShippingAddress(cs *CartService) echo.HandlerFunc {
 		}
 
 		orderRef := c.Param("orderRef")
-		cs.AddShippingAddress(orderRef, payload.Address)
+		err := cs.AddShippingAddress(orderRef, payload.Address)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, errMessage{err})
+		}
 
 		return c.JSON(http.StatusOK, payload)
 	}
@@ -90,7 +100,10 @@ func addPayment(cs *CartService) echo.HandlerFunc {
 		}
 
 		orderRef := c.Param("orderRef")
-		cs.AddPayment(orderRef, payload.Payment)
+		err := cs.AddPayment(orderRef, payload.Payment)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, errMessage{err})
+		}
 
 		return c.JSON(http.StatusOK, payload)
 	}
